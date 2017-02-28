@@ -1,6 +1,37 @@
 module ActsAsTenant
   module ControllerExtensions
 
+
+    # this method allows setting the current_tenant by reading the subdomain and looking
+    # it up in the tenant-model passed to the method. The method will look for the subdomain
+    # in a column referenced by the second argument.
+    def set_current_tenant_by_host(tenant = :account, column = :host )
+      self.class_eval do
+        cattr_accessor :tenant_class, :tenant_column
+      end
+
+      self.tenant_class = tenant.to_s.camelcase.constantize
+      self.tenant_column = column.to_sym
+
+      self.class_eval do
+        before_filter :find_tenant_by_host
+        helper_method :current_tenant
+
+        private
+          def find_tenant_by_host
+            if request.host
+              ActsAsTenant.current_tenant = tenant_class.where(tenant_column => request.host).first
+            end
+          end
+
+          def current_tenant
+            ActsAsTenant.current_tenant
+          end
+      end
+    end
+
+
+
     # this method allows setting the current_tenant by reading the subdomain and looking
     # it up in the tenant-model passed to the method. The method will look for the subdomain
     # in a column referenced by the second argument.
